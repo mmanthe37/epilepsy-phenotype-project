@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "EvidenceLedgerEntry",
+  "type": "object",
+  "required": [
+    "timestamp",
+    "data_id",
+    "record_type",
+    "source_tier",
+    "author",
+    "version"
+  ],
+  "properties": {
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "data_id": {
+      "type": "string"
+    },
+    "record_type": {
+      "type": "string",
+      "enum": [
+        "CLAIM",
+        "NOTE",
+        "LAB",
+        "IMAGING",
+        "GENETIC",
+        "RX",
+        "SURVEY",
+        "EXTERNAL"
+      ]
+    },
+    "source_tier": {
+      "type": "string",
+      "enum": [
+        "TIER1",
+        "TIER2",
+        "TIER3"
+      ]
+    },
+    "author": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "content_hash": {
+      "type": "string"
+    }
+  }
+}

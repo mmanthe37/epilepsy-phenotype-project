@@ -1,0 +1,45 @@
+{
+  "patient_id": "DEMO-001",
+  "description": "Sample 5-year trajectory for mesial TLE progressing to DRE",
+  "encounters": [
+    {
+      "date": "2020-03-15",
+      "type": "initial_evaluation",
+      "tier": "TIER1",
+      "text": "28-year-old with focal impaired awareness seizures since age 12. MRI: left hippocampal sclerosis. Started levetiracetam 500mg BID.",
+      "phenotype": {
+        "seizure_type": "FOCAL_IMPAIRED_AWARENESS",
+        "etiology": "STRUCTURAL",
+        "syndrome": "MESIAL_TLE",
+        "treatment_response": "DRUG_NAIVE"
+      }
+    },
+    {
+      "date": "2020-09-01",
+      "type": "follow_up",
+      "tier": "TIER1",
+      "text": "Seizure-free 4 months on levetiracetam. Good response.",
+      "phenotype": {
+        "treatment_response": "DRUG_RESPONSIVE"
+      }
+    },
+    {
+      "date": "2022-04-10",
+      "type": "follow_up",
+      "tier": "TIER1",
+      "text": "Breakthrough seizures 3-4/month. Added lacosamide. ILAE DRE criteria not yet met.",
+      "phenotype": {
+        "treatment_response": "EMERGING_RESISTANCE"
+      }
+    },
+    {
+      "date": "2023-11-20",
+      "type": "emu_monitoring",
+      "tier": "TIER1",
+      "text": "SEEG confirms left mesial temporal onset. Failed 3 ASMs. DRE confirmed. Surgical evaluation initiated.",
+      "phenotype": {
+        "treatment_response": "PHARMACORESISTANT"
+      }
+    }
+  ]
+}
