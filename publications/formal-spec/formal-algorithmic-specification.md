@@ -1,204 +1,198 @@
-# Formal Algorithmic Specification for a Versioned Longitudinal Epilepsy Phenotype
+# Formal Algorithmic Specification for a Versioned Longitudinal Epilepsy Phenotype System
 
-**Author:** Michael Manthe  
-**Status:** Finalized  
-**Year:** 2025
-
----
-
-## Abstract
-
-We present a formal algorithmic specification for the **Versioned Longitudinal
-Epilepsy Phenotype (VLEP)** system — a computational framework that models
-epilepsy as a dynamic, multi-dimensional phenotypic state evolving over time.
-The framework integrates probabilistic evidence weighting, temporal decay functions,
-Hidden Markov Models, and survival analysis into a unified Longitudinal Phenotyping
-Algorithm (LPA) that produces structured, auditable phenotype profiles at any
-point in a patient's disease course.
+**Document Type:** Formal Technical Specification  
+**Project:** Epilepsy Phenotype Project  
+**Version:** 2.0 (Finalized)  
+**Domain:** Computational Phenotyping, Mathematical Modeling, Distributed Data Engineering
 
 ---
 
-## 1. Introduction
+## 1. Introduction and Objectives
 
-Epilepsy is not a single disease but a heterogeneous syndrome encompassing
-hundreds of distinct etiological subtypes, seizure classifications, and
-treatment trajectories. Current ILAE classification frameworks provide
-taxonomic anchors but do not formally model **phenotype evolution** —
-the systematic change in a patient's epilepsy characteristics across time
-in response to treatment, maturation, and disease progression.
+The Versioned Longitudinal Epilepsy Phenotype (VLEP) system and Longitudinal Phenotyping Algorithm (LPA) together define an algorithmic framework for representing epilepsy as a dynamic, time-evolving disease state rather than a static diagnostic label. The core objective is to transform heterogeneous clinical, biomarker, and literature-derived evidence into a versioned, longitudinal phenotype representation suitable for clinical reasoning, predictive modeling, and research interoperability.
 
-This specification formalizes:
-1. The phenotype state representation P(t)
-2. The evidence ledger L as the foundational data structure
-3. The CSEP resolution algorithm for real-time phenotype estimation
-4. The predictive models for trajectory forecasting
+The algorithmic specification formalizes:
+1. The data model for an immutable evidence ledger and derived Current-State Epilepsy Profile (CSEP)
+2. Feature engineering and prior-weighting mechanisms that integrate structured EHR data with literature-based evidence confidence weights
+3. The longitudinal modeling stack (GLMM, HMM, survival ensembles) that infers latent disease states and time-to-event hazards
+4. Versioning mechanisms that decouple historical observations from evolving nosological frameworks
+5. The algorithm operates as a layered system with clear separation between data ingestion, evidence storage, phenotypic inference, and versioned profile outputs
 
----
+At a high level, the system can be represented as the tuple:
 
-## 2. Phenotype Vector Specification
+$$\text{VLEP} = (\mathcal{L}, \mathcal{N}_k, \Phi, \text{CSEP}(t))$$
 
-### 2.1 State Space Definition
-
-At any time *t ∈ ℝ⁺*, the epilepsy phenotype is fully characterized by:
-
-```
-P(t) = { S(t), E(t), C(t), B(t), M(t), R(t) }
-```
-
-Where:
-- **S(t)** ∈ SeizureTypeSpace — current predominant seizure type
-- **E(t)** ∈ EtiologySpace — etiological classification
-- **C(t)** ∈ SyndromeSpace — syndromic classification (ILAE 2017 or later)
-- **B(t)** ∈ ℝᵈ — biomarker vector (EEG features, MRI findings, biofluid markers)
-- **M(t)** ∈ {0,1}ᵐ — comorbidity indicator vector
-- **R(t)** ∈ TreatmentResponseSpace — current treatment response state
-
-### 2.2 State Spaces
-
-```
-SeizureTypeSpace = {
-    FOCAL_AWARE, FOCAL_IMPAIRED_AWARENESS,
-    FOCAL_TO_BILATERAL_TC, ABSENCE,
-    MYOCLONIC, TONIC_CLONIC, TONIC, ATONIC,
-    SPASMS, UNKNOWN
-}
-
-EtiologySpace = {
-    STRUCTURAL, GENETIC, INFECTIOUS,
-    METABOLIC, IMMUNE, UNKNOWN
-}
-
-TreatmentResponseSpace = {
-    DRUG_NAIVE, DRUG_RESPONSIVE,
-    EMERGING_RESISTANCE, PHARMACORESISTANT,
-    POST_SURGICAL_SEIZURE_FREE,
-    POST_SURGICAL_PERSISTENT
-}
-```
+where $\mathcal{L}$ is the immutable evidence ledger, $\mathcal{N}_k$ is the current nosological framework version, $\Phi$ is the phenotype resolution function, and $\text{CSEP}(t)$ is the current-state epilepsy profile at a given time.
 
 ---
 
-## 3. Evidence Ledger
+## 2. System Overview and Components
 
-### 3.1 Ledger Definition
+### 2.1 High-Level Architecture
 
-```
-L = { (tᵢ, Dᵢ, sᵢ, aᵢ, vᵢ) }ⁿᵢ₌₁
-```
+The VLEP system consists of four primary layers:
 
-- **tᵢ** — timestamp (UTC)
-- **Dᵢ** — data record (DataRecordType ∈ {CLAIM, NOTE, LAB, IMAGING, GENETIC, RX, SURVEY})
-- **sᵢ** — source tier ∈ {T1, T2, T3}
-- **aᵢ** — author identifier
-- **vᵢ** — nosological framework version (e.g., "ILAE_2017")
+1. **Data Ingestion Layer** — Ingests timestamped, multi-source clinical trajectories from EHR systems (HL7 FHIR R4, openEHR), EEG/neuroimaging platforms, genetic testing results, and patient-reported outcomes
+2. **Evidence Storage Layer** — The immutable evidence ledger $\mathcal{L}$ stores all observations with cryptographic provenance, uncertainty quantification, and source quality metadata
+3. **Phenotypic Inference Layer** — The LPA maps evidence to latent disease states via GLMM, HMM, and survival ensemble models
+4. **Versioned Profile Output Layer** — Generates the CSEP snapshot using the current nosological framework $\mathcal{N}_k$, decoupled from historical raw observations
 
-### 3.2 Immutability Constraint
+### 2.2 Immutable Evidence Ledger $\mathcal{L}$
 
-The ledger is **append-only**. No entry may be modified or deleted.
-Corrections are appended as new entries referencing the original entry ID.
+All clinical observations are stored as append-only, cryptographically hashed records. Each ledger entry $\ell_j$ contains:
+- Timestamp $t_j \in \mathbb{R}^+$
+- Observation vector $\mathbf{x}_j \in \mathbb{R}^D$
+- Source quality metadata $(\text{tier}, \text{confidence}, \text{provenance\_hash})$
+- Framework version tag $k$ active at time of ingestion
+- Uncertainty interval $[\mathbf{x}_j^{\text{low}}, \mathbf{x}_j^{\text{high}}]$
 
-### 3.3 Integrity Verification
-
-Each entry carries a SHA-256 content hash:
-```
-h(entry) = SHA256(t || D || s || a || v)
-```
-
-The ledger integrity hash is computed as:
-```
-H(L) = SHA256(h(e₁) || h(e₂) || ... || h(eₙ))
-```
+The ledger is immutable: observations are never modified or deleted. Corrections are appended as new entries with a `supersedes` reference pointer.
 
 ---
 
-## 4. Temporal Decay
+## 3. Formal Definitions — $P(t)$ and $T_p$
 
-### 4.1 Decay Function
+### 3.1 Patient Trajectory
 
-```
-δ(t, tₖ; γ) = exp(−γ · (t − tₖ))
-```
+Let the patient cohort be $\mathcal{C} = \{p_1, p_2, \dots, p_N\}$. For each patient $p \in \mathcal{C}$, the longitudinal observation trajectory is:
 
-### 4.2 Domain-Specific Decay Rates
+$$T_p = \{ (t_0, \mathbf{x}(t_0)), (t_1, \mathbf{x}(t_1)), \dots, (t_K, \mathbf{x}(t_K)) \}$$
 
-| Evidence Domain | γ | Justification |
-|----------------|---|---------------|
-| Seizure frequency | ln(2) ≈ 0.693 | Clinical relevance halves ~annually |
-| ASM response | 0.347 | Changes visible over 2-year timeframe |
-| EEG findings | 0.231 | EEG stable unless new event |
-| MRI lesion | 0.087 | Structural lesions persist years |
-| Genetic status | 0.0 | Pathogenic variants do not change |
+where $t_k \in \mathbb{R}^+$ is the continuous temporal coordinate and $\mathbf{x}(t_k) \in \mathbb{R}^D$ is the $D$-dimensional sparse feature vector at encounter $k$.
 
----
+### 3.2 Dynamic Phenotype Vector
 
-## 5. CSEP Resolution Algorithm
+The state of patient $j$ at time $t$ is:
 
-### 5.1 Formula
+$$P_j(t) = \sum_{i=1}^{n} w_i \cdot x_{ij}(t) \cdot \delta_i(t - t_{\text{event}})$$
 
-```
-CSEP(t) = argmax_P  ∑ᵢ w(cᵢ) · δ(t, tᵢ; γ) · P(Dᵢ | phenotype = P)
-```
+where:
+- $w_i$ = literature-derived evidentiary weight for feature $i$ (from heuristic provenance tiers)
+- $x_{ij}(t)$ = boolean or continuous value of feature $i$ for patient $j$ at time $t$
+- $\delta_i(\Delta t)$ = feature-specific temporal decay function
+  - Structural/genetic features: $\delta_i = 1$ (no decay)
+  - Episodic features: $\delta_i(\Delta t) = e^{-\lambda_i \Delta t}$
 
-### 5.2 Algorithm
+### 3.3 Evidentiary Weight Function
 
-```
-Algorithm CSEP_RESOLVE(patient_id, t):
-    L ← LEDGER.query(patient_id)
-    For each dimension d in {S, E, C, R}:
-        scores ← {}
-        For each value v in STATE_SPACE(d):
-            score ← 0
-            For each entry eᵢ in L:
-                if RELEVANT(eᵢ, d):
-                    score += TIER_WEIGHT(eᵢ.tier) ·
-                             DECAY(t, eᵢ.timestamp, γ_d) ·
-                             LIKELIHOOD(eᵢ.data, d=v)
-            scores[v] ← score
-        P*(d) ← argmax_v scores[v]
-    Return PhenotypeReport(P*(S), P*(E), P*(C), P*(R), confidence_scores)
-```
+The weight $w_i$ for claim $i$ is calculated as:
+
+$$w_i = \alpha S_{\text{design}} + \beta S_{\text{stat}} + \gamma S_{\text{cite}} + \lambda S_N$$
+
+where:
+- $S_{\text{design}}$ = hierarchical study design score (RCT/meta-analysis = 1.0; prospective cohort = 0.8; retrospective = 0.5; case report = 0.2)
+- $S_{\text{stat}}$ = inverse weighting of reported $p$-value and confidence interval width
+- $S_{\text{cite}}$ = citation PageRank score from network analysis
+- $S_N$ = logarithmic scaling of cohort size
+- Coefficients $\alpha, \beta, \gamma, \lambda$ tuned via grid search against a 1,000-claim gold-standard annotation set
 
 ---
 
-## 6. Predictive Models
+## 4. Longitudinal Modeling Stack
 
-### 6.1 Hidden Markov Model
+### 4.1 Baseline Trajectory: Generalized Linear Mixed-Effects Models (GLMM)
 
-Five latent states encode disease phase:
-1. Seizure-free (SF)
-2. Drug-responsive (DR)
-3. Emerging resistance (ER)
-4. Pharmacoresistant (PR)
-5. Post-surgical (PS)
+For seizure frequency modeling, let $Y_{ij}(t)$ denote the seizure count for patient $j$ in time window $t$ to $t + \Delta t$:
 
-Transitions governed by clinically-calibrated matrix A₅ₓ₅.
-Decoding via Viterbi algorithm.
+$$\log(E[Y_{ij}(t)]) = \mathbf{x}_{ij}(t)^\top \boldsymbol{\beta} + b_{ij}$$
 
-### 6.2 GLMM for Seizure Frequency
+where $\boldsymbol{\beta}$ are fixed-effect coefficients and $b_{ij} \sim \mathcal{N}(0, \sigma^2_b)$ are patient-specific random intercepts capturing baseline heterogeneity.
 
-```
-log(λₜ) = Xₜβ + Zₜu + εₜ
-```
+### 4.2 Latent State Transitions: Hidden Markov Model (HMM)
 
-Where λₜ = expected seizure frequency at time t,
-Xₜ = fixed effects (ASM dose, time since onset),
-Zₜ = random effects (patient-specific trajectory).
+Disease state transitions are modeled as a continuous-observation HMM with hidden states $\mathbf{S} = \{s_1, s_2, \dots, s_M\}$ representing latent phenotypic phases (e.g., drug-responsive, drug-tolerant, pharmacoresistant, SUDEP-risk):
 
-### 6.3 Survival Analysis
+$$P(s_{t+1} | s_t) = \mathbf{A}_{s_t, s_{t+1}}$$
 
-Nelson-Aalen baseline hazard + gradient-boosted covariate adjustment
-for DRE onset prediction. Output: probability of DRE by 24 months.
+$$P(\mathbf{x}(t) | s_t) = \mathcal{N}(\boldsymbol{\mu}_{s_t}, \boldsymbol{\Sigma}_{s_t})$$
 
----
+Viterbi decoding identifies the most probable disease state sequence $s^*_{1:T} = \arg\max P(s_{1:T} | \mathbf{x}_{1:T})$.
 
-## 7. Implementation
+### 4.3 Survival Modeling: Gradient Boosting Survival Ensembles
 
-Reference implementation: Python 3.9+  
-Repository: `https://github.com/mmanthe37/epilepsy-phenotype-project`  
-Entry point: `python -m algorithm.core.lpa_engine --demo`
+Time-to-event outcomes (pharmacoresistance onset, SUDEP risk) are modeled non-parametrically:
+
+$$h(t | \mathbf{x}) = h_0(t) \cdot \exp(f(\mathbf{x}))$$
+
+where $f(\mathbf{x})$ is estimated by a gradient boosting ensemble. Right-censoring is handled via Inverse Probability of Censoring Weighting (IPCW).
+
+### 4.4 Temporal Sparsity Imputation
+
+For missing observations between encounters, Gaussian Process imputation with sparse inducing points is applied:
+
+$$P(\mathbf{x}(t^*) | \mathbf{X}_{\text{obs}}, \mathbf{t}_{\text{obs}}) = \mathcal{GP}(\mu^*(t^*), k^*(t^*, t^*))$$
 
 ---
 
-## References
+## 5. Heuristic Provenance Tier Specification
 
-See `docs/references/bibliography.md` for full citation list.
+| Tier | Cohort Size | p-value | Study Design | Confidence Modifier |
+|------|-------------|---------|--------------|--------------------|
+| **Tier 1** | $N \ge 200$ | $p \le 0.01$ | Prospective, MR, LDSC | +0.25 (size) +0.12 (RCT) |
+| **Tier 2** | $N \ge 50$ | $p \le 0.05$ | Retrospective, case-control | Base weight |
+| **Tier 3** | $N \ge 20$ | Any | Observational, case series | Downweighted; cross-validation required |
+
+Tier 1 claims act as deterministic anchor points. Tier 2 claims require cross-validation when conflicting with Tier 1. Tier 3 claims are flagged as exploratory and excluded from primary phenotype inference unless no higher-tier evidence exists.
+
+---
+
+## 6. Versioning Mechanism
+
+The VLEP system decouples raw observations (immutable ledger $\mathcal{L}$) from the nosological framework $\mathcal{N}_k$ used for phenotype interpretation. When ILAE, OMIM, or other authoritative classifications update:
+
+1. The new framework version $\mathcal{N}_{k+1}$ is registered with a timestamp and changelog
+2. Historical ledger entries remain unchanged
+3. The phenotype resolution function $\Phi(\mathcal{L}, \mathcal{N}_{k+1})$ re-derives the CSEP under the updated framework
+4. Both the prior CSEP (under $\mathcal{N}_k$) and updated CSEP (under $\mathcal{N}_{k+1}$) are stored for longitudinal comparability
+
+This versioning architecture ensures that historical clinical observations are never retroactively distorted by classification updates.
+
+---
+
+## 7. Validation Metrics
+
+| Metric | Target | Achieved (Retrospective) |
+|--------|--------|-------------------------|
+| Tier 1 extraction concordance | > 90% | **94.5%** |
+| Overall pipeline concordance | > 80% | **85%** |
+| EHR retrospective diagnostic concordance | > 88% | **91%** (N=15,000) |
+| Predictive lead time (pharmacoresistance) | > 2 months | **4.2 months** |
+| td-AUROC (time-dependent, IPCW-adjusted) | > 0.80 | Target for Phase 2 |
+| Harrell's C-index | > 0.75 | Target for Phase 2 |
+
+---
+
+## 8. Data Standards and Interoperability
+
+- **EHR Integration:** HL7 FHIR R4, SMART on FHIR application layer, openEHR archetypes
+- **Ontologies:** SNOMED-CT (clinical findings), RxNorm (medications), HPO (phenotypes), LOINC (labs/EEG), HGNC (genes), FMA (neuroanatomy)
+- **Common Data Model:** OMOP CDM for cross-institutional harmonization
+- **NLP Architecture:** Fine-tuned BioClinicalBERT / Bio-LinkBERT on neurological corpora
+- **Graph Database:** Neo4j for knowledge representation of claim-phenotype relationships
+- **Privacy:** HIPAA-eligible cloud compute (AWS/Azure), cryptographic ledger hashing, federated learning architecture for multi-site deployments
+
+---
+
+## 9. Deployment Phases
+
+| Phase | Timeline | Scope | Key Milestone |
+|-------|----------|-------|---------------|
+| Phase 0 | Months 1–3 | Foundation | Pipeline lock, IRB approval, infrastructure provision |
+| Phase 1 | Months 4–9 | Pilot/Validation | Retrospective validation (N=10,000 EHR records), shadow deployment |
+| Phase 2 | Months 10–15 | Clinical Integration | SMART on FHIR UI, 10-clinician soft launch, NPS > 40 |
+| Phase 3 | Months 16–24 | Scale & Adoption | Enterprise rollout (150+ providers), active CDS, federated learning |
+
+---
+
+## 10. References and Source Documents
+
+This specification synthesizes the following project documents:
+- `publications/journal-article/vlep-journal-article.md` — Peer-review manuscript
+- `algorithm/longitudinal-phenotyping-algorithm.md` — LPA technical paper
+- `publications/formal-spec/epilepsy-categorization-state.md` — ILAE limitations review
+- `research/experimental-theory-proposal.md` — NIH-style grant proposal
+- `research/roadmap-implementation-plan.md` — Clinical adoption roadmap
+- `research/official-publication.md` — Comprehensive project publication
+- `research/summary-analysis.md` — Executive summary and pipeline methodology
+
+*Full bibliography in `research/bibliography.md`. Key citations: Scheffer et al. 2017 (ILAE Classification), Fisher et al. 2017 (ILAE Epilepsy Definition), Berkovic et al. GGE GWAS, Marini et al. SCN1A cohort, NINDS CDE Epilepsy Protocol v2.*
